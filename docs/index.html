@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Package Downloader</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f1f3f6;
+    --border: #e1e4ea;
+    --text: #1b1f27;
+    --muted: #626b7a;
+    --accent: #2f6fde;
+    --accent-text: #ffffff;
+    --accent-soft: #e8f0fd;
+    --ok: #1f8a4c;
+    --warn: #b7791f;
+    --err: #c9372c;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --surface: #171a21;
+      --surface-2: #1e222b;
+      --border: #2a2f3a;
+      --text: #e6e8ec;
+      --muted: #9199a8;
+      --accent: #5b8ff0;
+      --accent-text: #0f1115;
+      --accent-soft: #1c2a44;
+      --ok: #4cc283;
+      --warn: #e0a43c;
+      --err: #f0675b;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 16px 48px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  header .spacer { flex: 1; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card + .card { margin-top: 18px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .hint { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: auto; }
+  label.field { display: block; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  label.field > span { display: block; margin-bottom: 4px; }
+  input[type=text], input[type=password], select, textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea { font-family: var(--mono); font-size: 13px; min-height: 280px; resize: vertical; line-height: 1.55; }
+  textarea.drag { outline: 2px dashed var(--accent); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 160px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin: 8px 0 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .toolbar .spacer { flex: 1; }
+  button, .btn {
+    font: inherit; font-size: 14px; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  button.small, .btn.small { font-size: 12.5px; padding: 4px 10px; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; padding: 10px 18px; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .chip span {
+    display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); font-size: 13.5px; color: var(--text); user-select: none;
+  }
+  .chip input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chip input:focus-visible + span { outline: 2px solid var(--accent); }
+  fieldset { border: 0; padding: 0; margin: 0 0 14px; }
+  legend { font-size: 13px; color: var(--muted); margin-bottom: 6px; padding: 0; }
+  .muted { color: var(--muted); }
+  .note { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+  .msg { font-size: 13.5px; margin-top: 12px; padding: 9px 12px; border-radius: 8px; display: none; }
+  .msg.show { display: block; }
+  .msg.err { background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); }
+  .msg.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); }
+  details.settings summary { cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 8px; }
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary .state { margin-left: auto; font-weight: 400; font-size: 13px; }
+  details.settings[open] summary { margin-bottom: 14px; }
+  .check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .runs { display: flex; flex-direction: column; gap: 10px; }
+  .run { border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; background: var(--surface-2); }
+  .run-head { display: flex; gap: 10px; align-items: flex-start; }
+  .run-title { font-size: 13.5px; font-weight: 600; word-break: break-word; }
+  .run-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .run-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-top: 5px; background: var(--muted); }
+  .dot.ok { background: var(--ok); }
+  .dot.err { background: var(--err); }
+  .dot.busy { background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .artifact { font-family: var(--mono); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 13.5px; text-align: center; padding: 26px 8px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+  ol.steps { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--muted); }
+  ol.steps li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="font-size:30px">📦</div>
+    <div>
+      <h1>Python Package Downloader</h1>
+      <p>Paste a requirements.txt — GitHub Actions downloads every wheel for the target OS, verifies an offline install, and gives you a zip.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <details class="settings" id="settings">
+          <summary>⚙️ Repository &amp; token <span class="state" id="settings-state"></span></summary>
+          <div class="row">
+            <label class="field"><span>Repository (owner/name)</span>
+              <input type="text" id="repo" placeholder="badrusalam11/python-package-downloader" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="field" style="flex:0 1 140px"><span>Branch</span>
+              <input type="text" id="ref" placeholder="main" autocomplete="off" spellcheck="false">
+            </label>
+          </div>
+          <label class="field"><span>GitHub token</span>
+            <input type="password" id="token" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+          </label>
+          <div class="toolbar" style="margin-top:-4px">
+            <label class="check"><input type="checkbox" id="remember"> Remember token in this browser</label>
+            <span class="spacer"></span>
+            <button class="small" id="save">Save</button>
+          </div>
+          <p class="note">Use a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> scoped to this repository only, with <b>Actions: Read and write</b>. The token is sent only to api.github.com.</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>requirements.txt <span class="hint" id="count">0 packages</span></h2>
+        <textarea id="reqs" spellcheck="false" placeholder="# paste or drop your requirements.txt here
+requests==2.32.3
+flask>=3.0
+pandas
+locust"></textarea>
+        <div class="toolbar">
+          <button class="small" id="pick">📄 Open file…</button>
+          <input type="file" id="file" accept=".txt,.in,text/plain" hidden>
+          <button class="small" id="clear">Clear</button>
+          <span class="spacer"></span>
+          <span>Drop a file onto the box</span>
+        </div>
+
+        <div class="row">
+          <label class="field"><span>Python version</span>
+            <select id="py">
+              <option>3.10</option><option>3.11</option><option selected>3.12</option><option>3.13</option><option>3.14</option>
+            </select>
+          </label>
+          <label class="field"><span>Mode</span>
+            <select id="mode">
+              <option value="wheels-only">Wheels only (binary)</option>
+              <option value="build-sdists">Build missing wheels from source</option>
+            </select>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>Target OS — one workflow run per OS</legend>
+          <div class="chips" id="os">
+            <label class="chip"><input type="checkbox" value="windows-x64" checked><span>Windows x64</span></label>
+            <label class="chip"><input type="checkbox" value="linux-x64"><span>Linux x64</span></label>
+            <label class="chip"><input type="checkbox" value="linux-arm64"><span>Linux ARM64</span></label>
+            <label class="chip"><input type="checkbox" value="macos-arm64"><span>macOS ARM64</span></label>
+          </div>
+        </fieldset>
+
+        <button class="primary" id="go">⬇️ Download packages</button>
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Runs <span class="hint"><button class="small" id="refresh">↻ Refresh</button></span></h2>
+        <div class="runs" id="runs"><div class="empty">Set the repository and token to see runs.</div></div>
+      </div>
+      <div class="card">
+        <h2>Install offline</h2>
+        <ol class="steps">
+          <li>Download the artifact zip and copy it to the offline machine.</li>
+          <li>Extract it — you get <code>packages/</code> and <code>requirements.txt</code>.</li>
+          <li>Run <code>pip install --no-index --find-links=packages -r requirements.txt</code></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORKFLOW = 'download.yml';
+const MAX_INPUT = 60000;            // workflow_dispatch inputs are capped at 65,535 chars in total
+const POLL_MS = 5000;
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ── Settings ───────────────────────────────────────────────────────────────
+function detectRepo() {
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/i);
+  const name = location.pathname.split('/').filter(Boolean)[0];
+  return m && name ? `${m[1]}/${name}` : '';
+}
+$('#repo').value = store.get('ppd.repo') || detectRepo();
+$('#ref').value = store.get('ppd.ref') || 'main';
+$('#token').value = store.get('ppd.token') || sessionStorageGet('ppd.token') || '';
+$('#remember').checked = !!store.get('ppd.token');
+$('#reqs').value = store.get('ppd.reqs') || '';
+
+function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
+function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch {} }
+
+function cfg() {
+  return { repo: $('#repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, ''),
+           ref: $('#ref').value.trim() || 'main', token: $('#token').value.trim() };
+}
+function configured() { const c = cfg(); return /^[\w.-]+\/[\w.-]+$/.test(c.repo) && c.token; }
+function updateSettingsState() {
+  $('#settings-state').innerHTML = configured()
+    ? `<span style="color:var(--ok)">● ${esc(cfg().repo)}</span>` : '<span style="color:var(--warn)">● not configured</span>';
+  if (!configured()) $('#settings').open = true;
+}
+$('#save').onclick = () => {
+  const c = cfg();
+  store.set('ppd.repo', c.repo); store.set('ppd.ref', c.ref);
+  store.set('ppd.token', $('#remember').checked ? c.token : null);
+  sessionStorageSet('ppd.token', c.token);
+  updateSettingsState();
+  if (configured()) { $('#settings').open = false; artifactsCache.clear(); refresh(); }
+};
+
+// ── Requirements box ───────────────────────────────────────────────────────
+function reqLines() {
+  return $('#reqs').value.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+}
+function updateCount() {
+  const n = reqLines().filter(l => !l.startsWith('-')).length;
+  $('#count').textContent = `${n} package${n === 1 ? '' : 's'}`;
+  store.set('ppd.reqs', $('#reqs').value);
+}
+$('#reqs').addEventListener('input', updateCount);
+$('#pick').onclick = () => $('#file').click();
+$('#file').onchange = async e => { const f = e.target.files[0]; if (f) { $('#reqs').value = await f.text(); updateCount(); } e.target.value = ''; };
+$('#clear').onclick = () => { $('#reqs').value = ''; updateCount(); $('#reqs').focus(); };
+const ta = $('#reqs');
+ta.addEventListener('dragover', e => { e.preventDefault(); ta.classList.add('drag'); });
+ta.addEventListener('dragleave', () => ta.classList.remove('drag'));
+ta.addEventListener('drop', async e => {
+  e.preventDefault(); ta.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) { ta.value = await f.text(); updateCount(); }
+});
+
+// ── GitHub API ─────────────────────────────────────────────────────────────
+async function gh(path, opts = {}) {
+  const { repo, token } = cfg();
+  const res = await fetch(`https://api.github.com/repos/${repo}${path}`, {
+    ...opts,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      Authorization: `Bearer ${token}`,
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).message || msg; } catch {}
+    if (res.status === 404) msg += ' — check the repository name, that the workflow is on the branch, and the token has Actions access';
+    if (res.status === 401) msg += ' — token is invalid or expired';
+    throw new Error(`GitHub ${res.status}: ${msg}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function showMsg(text, kind) {
+  const m = $('#msg');
+  m.className = `msg show ${kind}`;
+  m.textContent = text;
+}
+
+// Dispatched runs that haven't shown up in the runs list yet, keyed by request id.
+const pending = new Map();
+
+$('#go').onclick = async () => {
+  if (!configured()) { $('#settings').open = true; showMsg('Set the repository and token first.', 'err'); return; }
+  const lines = reqLines();
+  if (!lines.length) { showMsg('Paste at least one requirement.', 'err'); return; }
+  const requirements = lines.join('\n');
+  if (requirements.length > MAX_INPUT) { showMsg(`requirements is ${requirements.length} chars — GitHub allows about ${MAX_INPUT}. Split it into several runs.`, 'err'); return; }
+  const targets = [...document.querySelectorAll('#os input:checked')].map(i => i.value);
+  if (!targets.length) { showMsg('Pick at least one target OS.', 'err'); return; }
+
+  const btn = $('#go');
+  btn.disabled = true;
+  const batch = Math.random().toString(36).slice(2, 8);
+  const started = [];
+  try {
+    for (const os of targets) {
+      const id = `${batch}-${os}`;
+      await gh(`/actions/workflows/${WORKFLOW}/dispatches`, {
+        method: 'POST',
+        body: JSON.stringify({ ref: cfg().ref, inputs: {
+          requirements, python_version: $('#py').value, target_os: os, mode: $('#mode').value, request_id: id,
+        } }),
+      });
+      pending.set(id, { os, py: $('#py').value, at: Date.now() });
+      started.push(os);
+    }
+    showMsg(`Started ${started.length} run${started.length > 1 ? 's' : ''}: ${started.join(', ')}. Artifacts appear on the right when done.`, 'ok');
+  } catch (e) {
+    showMsg((started.length ? `Started ${started.join(', ')}, then failed: ` : '') + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    refresh();
+  }
+};
+
+// ── Runs list ──────────────────────────────────────────────────────────────
+const artifactsCache = new Map();   // run id → artifacts[]
+let pollTimer = null;
+
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return `${Math.round(s)}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString();
+}
+function duration(run) {
+  const end = run.status === 'completed' ? new Date(run.updated_at) : new Date();
+  const s = Math.round((end - new Date(run.run_started_at || run.created_at)) / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+function mb(bytes) { return `${(bytes / 1024 / 1024).toFixed(1)} MB`; }
+
+function runState(run) {
+  if (run.status !== 'completed') return { cls: 'busy', label: run.status.replace('_', ' ') };
+  if (run.conclusion === 'success') return { cls: 'ok', label: 'success' };
+  if (run.conclusion === 'failure') return { cls: 'err', label: 'failed' };
+  return { cls: '', label: run.conclusion || 'done' };
+}
+
+async function refresh() {
+  clearTimeout(pollTimer);
+  if (!configured()) return;
+  const box = $('#runs');
+  let runs;
+  try {
+    runs = (await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=15`)).workflow_runs;
+  } catch (e) {
+    box.innerHTML = `<div class="empty" style="color:var(--err)">${esc(e.message)}</div>`;
+    return;
+  }
+
+  for (const id of pending.keys()) {
+    if (runs.some(r => r.display_title.includes(`[${id}]`)) || Date.now() - pending.get(id).at > 180000) pending.delete(id);
+  }
+
+  await Promise.all(runs.filter(r => r.conclusion === 'success' && !artifactsCache.has(r.id)).map(async r => {
+    try { artifactsCache.set(r.id, (await gh(`/actions/runs/${r.id}/artifacts`)).artifacts); } catch {}
+  }));
+
+  const { repo } = cfg();
+  const html = [...pending.entries()].map(([id, p]) => `
+    <div class="run"><div class="run-head"><span class="dot busy"></span><div>
+      <div class="run-title">📦 ${esc(p.os)} · py${esc(p.py)}</div>
+      <div class="run-meta">dispatched — waiting for GitHub to start the run…</div>
+    </div></div></div>`);
+
+  for (const run of runs) {
+    const st = runState(run);
+    const arts = (artifactsCache.get(run.id) || []).map(a => a.expired
+      ? `<span class="btn small muted artifact">${esc(a.name)} (expired)</span>`
+      : `<a class="btn small artifact" href="https://github.com/${repo}/actions/runs/${run.id}/artifacts/${a.id}">⬇️ ${esc(a.name)}.zip · ${mb(a.size_in_bytes)}</a>`).join('');
+    html.push(`
+      <div class="run"><div class="run-head"><span class="dot ${st.cls}" title="${esc(st.label)}"></span><div style="min-width:0">
+        <div class="run-title">${esc(run.display_title)}</div>
+        <div class="run-meta">#${run.run_number} · ${esc(st.label)} · ${ago(run.created_at)} · ${duration(run)}</div>
+        <div class="run-actions">${arts}<a class="btn small" href="${esc(run.html_url)}" target="_blank" rel="noopener">Logs ↗</a></div>
+      </div></div></div>`);
+  }
+  box.innerHTML = html.join('') || '<div class="empty">No runs yet. Paste requirements and hit Download.</div>';
+
+  if (pending.size || runs.some(r => r.status !== 'completed')) pollTimer = setTimeout(refresh, POLL_MS);
+}
+
+$('#refresh').onclick = refresh;
+updateCount();
+updateSettingsState();
+refresh();
+</script>
+</body>
+</html>

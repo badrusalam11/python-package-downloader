@@ -1,0 +1,89 @@
+name: Download Python Packages
+
+# The web UI (docs/index.html) finds its run by the request id in this title.
+run-name: "📦 ${{ inputs.target_os }} · py${{ inputs.python_version }} · ${{ inputs.mode }}${{ inputs.request_id && format(' [{0}]', inputs.request_id) || '' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      requirements:
+        description: "requirements.txt content (multi-line via the web UI, or space-separated here: requests flask>=3 numpy)"
+        required: true
+        type: string
+
+      python_version:
+        description: "Python version"
+        required: true
+        type: choice
+        options:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+        default: "3.12"
+
+      target_os:
+        description: "Target OS"
+        required: true
+        type: choice
+        options:
+          - windows-x64
+          - linux-x64
+          - linux-arm64
+          - macos-arm64
+        default: windows-x64
+
+      mode:
+        description: "wheels-only = binary wheels only (like the locust downloader); build-sdists = build missing wheels from source"
+        required: true
+        type: choice
+        options:
+          - wheels-only
+          - build-sdists
+        default: wheels-only
+
+      request_id:
+        description: "Optional — set by the web UI to track this run"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+jobs:
+  # Runs on the ACTUAL target OS so pip resolves all platform-specific deps natively
+  download:
+    runs-on: ${{ fromJSON('{"windows-x64":"windows-latest","linux-x64":"ubuntu-latest","linux-arm64":"ubuntu-24.04-arm","macos-arm64":"macos-latest"}')[inputs.target_os] }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      # Requirements go through env, never interpolated into the script (injection-safe)
+      - name: Download, verify & pin
+        env:
+          REQUIREMENTS: ${{ inputs.requirements }}
+        run: python scripts/bundle.py --mode "${{ inputs.mode }}" --target "${{ inputs.target_os }}" --out bundle
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: python-packages-${{ inputs.target_os }}-py${{ inputs.python_version }}-${{ github.run_number }}
+          path: bundle/
+          retention-days: 30
+          if-no-files-found: error
