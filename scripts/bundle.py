@@ -80,6 +80,10 @@ def summary(text: str) -> None:
 
 
 def main() -> int:
+    # Windows consoles/pipes may default to cp1252, which can't encode the emoji below.
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--requirements-file", help="read requirements from this file instead of $REQUIREMENTS")
     parser.add_argument("--mode", choices=["wheels-only", "build-sdists"], default="wheels-only")
