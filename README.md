@@ -64,7 +64,7 @@ curl -X POST \
 
 | Input | Pilihan | Keterangan |
 |-------|---------|------------|
-| `python_version` | 3.10 – 3.14 | Harus sama dengan versi Python di mesin offline |
+| `python_version` | 3.9 – 3.14 | Harus sama dengan versi Python di mesin offline |
 | `target_os` | `windows-x64`, `linux-x64`, `linux-arm64`, `macos-arm64` | Runner: `windows-latest`, `ubuntu-latest`, `ubuntu-24.04-arm`, `macos-latest` |
 | `mode` | `wheels-only` | Hanya binary wheel (`pip download --only-binary=:all:`), sama seperti locust-offline-downloader |
 | | `build-sdists` | Package yang tidak punya wheel di-build dari source di runner (`pip wheel`), hasilnya tetap berupa wheel |
